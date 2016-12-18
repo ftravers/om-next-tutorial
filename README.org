@@ -52,7 +52,7 @@ equivalent to:
 {:current/user {:user/name "Fenton"}}
 #+END_SRC
 
-** Explaination
+** Explanation
 
 We have seen how to store *singleton'ish* information.  We use a map.
 We have also seen how to extract our information, the key here is the

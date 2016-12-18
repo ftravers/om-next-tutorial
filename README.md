@@ -5,7 +5,7 @@
 <li><a href="#sec-1">1. Introduction</a></li>
 <li><a href="#sec-2">2. App Database</a>
 <ul>
-<li><a href="#sec-2-1">2.1. Explaination</a></li>
+<li><a href="#sec-2-1">2.1. Explanation</a></li>
 </ul>
 </li>
 </ul>
@@ -58,7 +58,7 @@ equivalent to:
 
     {:current/user {:user/name "Fenton"}}
 
-## Explaination<a id="sec-2-1" name="sec-2-1"></a>
+## Explanation<a id="sec-2-1" name="sec-2-1"></a>
 
 We have seen how to store **singleton'ish** information.  We use a map.
 We have also seen how to extract our information, the key here is the
