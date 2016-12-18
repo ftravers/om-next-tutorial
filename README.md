@@ -41,7 +41,8 @@ map.
 
 Now lets test working with this database, create a `*.cljc` file with
 the following contents and fire up your **CLOJURE** not clojure-script
-REPL.
+REPL.  **NOTE:** feel free to use whatever namespace you want to,
+`omn1,core2` is tangential information to the lesson.
 
     (ns omn1.core2
       (:require [om.next :as om]))
