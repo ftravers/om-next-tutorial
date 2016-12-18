@@ -68,8 +68,8 @@ array with the keyword in it:
 
 This is the first introduction to what we call the **Query Syntax**.
 Here is a reference to
-[[<https://awkay.github.io/om-tutorial/#!/om_tutorial.D_Queries][query>
-syntax].
+[query
+syntax](https://awkay.github.io/om-tutorial/#!/om_tutorial.D_Queries).
 
 So lets add some more interesting data.  Lets add a list of things.
 
