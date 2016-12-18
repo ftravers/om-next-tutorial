@@ -8,6 +8,11 @@
 <li><a href="#sec-2-1">2.1. Explanation</a></li>
 </ul>
 </li>
+<li><a href="#sec-3">3. Wire into a web page</a>
+<ul>
+<li><a href="#sec-3-1">3.1. Existing Documentation Deviation</a></li>
+</ul>
+</li>
 </ul>
 </div>
 </div>
@@ -88,3 +93,81 @@ Access it the same old way:
      [{:make "Toyota", :model "Tacoma", :year "2013"}
       {:make "BMW", :model "325xi", :year "2001"}]}
     omn1.core2>
+
+# Wire into a web page<a id="sec-3" name="sec-3"></a>
+
+Now lets wire this up into a web page.  I'm going to separate this
+web-app into two files.  One `*.cljs` file and one `*.cljc` file.
+I'll put the parts that have to be in clojurescrip into the `*.cljs`
+file while parts that can run either server or client side (java or
+javascript) into the `*.cljc` file.
+
+The source tree will look like:
+
+    ╭─fenton@ss9 ~/projects/omn1/src  ‹master*› 
+    ╰─➤  tree
+    |-- cljc
+    |   `-- omn1
+    |       `-- data.cljc
+    `-- cljs
+        `-- omn1
+            `-- webpage.cljs
+    4 directories, 2 files
+
+File: `webpage.cljs`
+
+    (ns omn1.webpage
+      (:require
+       [om.next :as om :refer-macros [defui]]
+       [om.dom :as dom]
+       [goog.dom :as gdom]
+       [omn1.data :as dat]))
+    
+    (defui Blah
+      static om/IQuery
+      (query [this] [:currrent/user])
+      Object
+      (render
+       [this]
+       (let [data (om/props this)]
+         (dom/div nil (str "App Data: " data)))))
+    
+    (om/add-root! dat/reconciler Blah (gdom/getElement "app"))
+
+File: `data.cljc`
+
+    (ns omn1.data
+      (:require [om.next :as om :refer-macros [defui]]))
+    
+    (def app-state (atom {:current/user {:user/name "Fenton"}
+                          :my-cars [{:make "Toyota"
+                                     :model "Tacoma"
+                                     :year "2013"}
+                                    {:make "BMW"
+                                     :model "325xi"
+                                     :year "2001"}]}))
+    
+    (defn reader
+      [{:keys [query state]} _ _]
+      (let [st @state]
+        {:value (om/db->tree query st st)}))
+    
+    (def parser (om/parser {:read reader}))
+    
+    (def reconciler
+      (om/reconciler {:state app-state :parser parser}))
+
+Okay there is a lot of stuff here, but it should be familiar from the
+other two sources of information.  This doc is just filling out parts
+I didn't understand or I felt needed a more pedantic. 
+
+## Existing Documentation Deviation<a id="sec-3-1" name="sec-3-1"></a>
+
+In the examples in the quick start, the reader function calls
+`db->tree` in a different way, it says:
+
+    (om/db->tree key (get st k) st)
+
+Whereas we are passing in the full state each time.  I found the quick
+start way didn't work for me when I had a simple **property** query,
+i.e. our singleton query for current user.

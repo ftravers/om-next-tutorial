@@ -88,3 +88,89 @@ omn1.core2> (om/db->tree [:my-cars] @app-state @app-state)
   {:make "BMW", :model "325xi", :year "2001"}]}
 omn1.core2> 
 #+END_SRC
+
+* Wire into a web page
+
+Now lets wire this up into a web page.  I'm going to separate this
+web-app into two files.  One ~*.cljs~ file and one ~*.cljc~ file.
+I'll put the parts that have to be in clojurescrip into the ~*.cljs~
+file while parts that can run either server or client side (java or
+javascript) into the ~*.cljc~ file.
+
+The source tree will look like:
+
+#+BEGIN_SRC 
+╭─fenton@ss9 ~/projects/omn1/src  ‹master*› 
+╰─➤  tree
+|-- cljc
+|   `-- omn1
+|       `-- data.cljc
+`-- cljs
+    `-- omn1
+        `-- webpage.cljs
+4 directories, 2 files
+#+END_SRC
+
+File: ~webpage.cljs~
+
+#+BEGIN_SRC clojure
+  (ns omn1.webpage
+    (:require
+     [om.next :as om :refer-macros [defui]]
+     [om.dom :as dom]
+     [goog.dom :as gdom]
+     [omn1.data :as dat]))
+
+  (defui Blah
+    static om/IQuery
+    (query [this] [:currrent/user])
+    Object
+    (render
+     [this]
+     (let [data (om/props this)]
+       (dom/div nil (str "App Data: " data)))))
+
+  (om/add-root! dat/reconciler Blah (gdom/getElement "app"))
+#+END_SRC
+
+File: ~data.cljc~
+
+#+BEGIN_SRC clojure
+(ns omn1.data
+  (:require [om.next :as om :refer-macros [defui]]))
+
+(def app-state (atom {:current/user {:user/name "Fenton"}
+                      :my-cars [{:make "Toyota"
+                                 :model "Tacoma"
+                                 :year "2013"}
+                                {:make "BMW"
+                                 :model "325xi"
+                                 :year "2001"}]}))
+
+(defn reader
+  [{:keys [query state]} _ _]
+  (let [st @state]
+    {:value (om/db->tree query st st)}))
+
+(def parser (om/parser {:read reader}))
+
+(def reconciler
+  (om/reconciler {:state app-state :parser parser}))
+#+END_SRC
+
+Okay there is a lot of stuff here, but it should be familiar from the
+other two sources of information.  This doc is just filling out parts
+I didn't understand or I felt needed a more pedantic. 
+
+** Existing Documentation Deviation
+
+In the examples in the quick start, the reader function calls
+~db->tree~ in a different way, it says:
+
+#+BEGIN_SRC clojure
+  (om/db->tree key (get st k) st)
+#+END_SRC
+
+Whereas we are passing in the full state each time.  I found the quick
+start way didn't work for me when I had a simple *property* query,
+i.e. our singleton query for current user.
