@@ -164,10 +164,10 @@ I didn't understand or I felt needed a more pedantic.
 ## Existing Documentation Deviation<a id="sec-3-1" name="sec-3-1"></a>
 
 In the examples in the quick start, the reader function calls
-`db->tree` in a different way, it says:
+`db->tree` in a different way, notice the second argument difference: 
 
     (om/db->tree key (get st k) st)
 
-Whereas we are passing in the full state each time.  I found the quick
-start way didn't work for me when I had a simple **property** query,
-i.e. our singleton query for current user.
+Whereas we are passing in the full state as the second parameter.  I
+found the [quick start](https://github.com/omcljs/om/wiki/Thinking-With-Links%21#the-application-state) way didn't work for me when I had a simple
+**property** query, i.e. our singleton query for current user.
