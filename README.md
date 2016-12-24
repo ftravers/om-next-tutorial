@@ -11,8 +11,10 @@
 <li><a href="#sec-3">3. Wire into a web page</a>
 <ul>
 <li><a href="#sec-3-1">3.1. Existing Documentation Deviation</a></li>
+<li><a href="#sec-3-2">3.2. Fix up web page</a></li>
 </ul>
 </li>
+<li><a href="#sec-4">4. Questions</a></li>
 </ul>
 </div>
 </div>
@@ -44,14 +46,16 @@ your application data more organized.
 The absolutely essential part is you have a map with a key to another
 map.
 
-Now lets test working with this database, create a `*.cljc` file with
-the following contents and fire up your **CLOJURE** not clojure-script
-REPL.  **NOTE:** feel free to use whatever namespace you want to,
-`omn1,core2` is tangential information to the lesson.
+Now lets test working with this client database, create a `*.cljc`
+file with the following contents and fire up your **CLOJURE** (not
+ClojureScript) REPL.  **NOTE:** feel free to use whatever namespace you
+want to, `omn1,core2` is tangential information to the lesson.
 
     (ns omn1.core2
       (:require [om.next :as om]))
     (def app-state (atom {:current/user {:user/name "Fenton"}}))
+
+Here `app-state` is your client database.
 
 Now in your REPL execute the following command:
 
@@ -72,9 +76,7 @@ array with the keyword in it:
     [:current/user]
 
 This is the first introduction to what we call the **Query Syntax**.
-Here is a reference to
-[query
-syntax](https://awkay.github.io/om-tutorial/#!/om_tutorial.D_Queries).
+Here is a reference to [query syntax](https://awkay.github.io/om-tutorial/#!/om_tutorial.D_Queries).
 
 So lets add some more interesting data.  Lets add a list of things.
 
@@ -125,7 +127,7 @@ File: `webpage.cljs`
     
     (defui Blah
       static om/IQuery
-      (query [this] [:currrent/user])
+      (query [this] [:current/user])
       Object
       (render
        [this]
@@ -171,3 +173,48 @@ In the examples in the quick start, the reader function calls
 Whereas we are passing in the full state as the second parameter.  I
 found the [quick start](https://github.com/omcljs/om/wiki/Thinking-With-Links%21#the-application-state) way didn't work for me when I had a simple
 **property** query, i.e. our singleton query for current user.
+
+## Fix up web page<a id="sec-3-2" name="sec-3-2"></a>
+
+Actually the web page is quite messy.  We do manage to get the data to
+the page, but we dont really display it very well.
+
+When we have tabular data with rows, we create UI to handle each
+individual row.
+
+# Questions<a id="sec-4" name="sec-4"></a>
+
+My webpage only has the output: `{:user {}}` with the following code.
+
+    (ns omn1.core
+      (:require
+       [om.next :as om :refer-macros [defui]]
+       [om.dom :as dom :refer [div]]
+       [goog.dom :as gdom]))
+    
+    (defui MyComponent
+      static om/IQuery
+      (query [this] [:user])
+      Object
+      (render
+       [this]
+       (let [data (om/props this)]
+         (div nil (str data)))))
+    
+    (def app-state (atom {:user {:name "Fenton"}}))
+    
+    (defn reader [{q :query st :state} _ _]
+      (.log js/console (str "q: " q))
+      {:value (om/db->tree q @app-state @app-state)})
+    
+    (def parser (om/parser {:read reader}))
+    
+    (def reconciler
+      (om/reconciler
+       {:state app-state
+        :parser parser}))
+    
+    (om/add-root! reconciler MyComponent (gdom/getElement "app"))
+
+When I check the browser console, I notice that my query is nil.  Why
+doesn't it get passed into my reader function?
