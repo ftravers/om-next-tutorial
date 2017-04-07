@@ -1,0 +1,231 @@
+
+
+
+
+
+
+
+
+* ------------------------------------------
+* Introduction
+
+This will be an evolving tutorial, representing what I know, and
+presumably at the end of the document, where I'm stuck.
+
+There are at least two good spots to study om-next, [[https://github.com/omcljs/om/wiki/Quick-Start-(om.next)][the quick-start]] on
+the wiki, and [[https://github.com/awkay/om-tutorial][Tony Kay's devcards tutorial]].  Even after reading/doing
+those sources, I was still too confused to build anything.  This
+document will outline where I'm still confused.
+
+* App Database
+
+Om next has a concept of a properly formed local database format.
+This should be a clojure map.  Storing simple data like the current
+users name should look like this:
+
+#+BEGIN_SRC clojure
+  {:current/user {:user/name "Fenton"}}
+#+END_SRC
+
+I'm not sure how important it is to namespace like: ~:current/user~
+versus ~:current-user~, but I think it is a best practice to help keep
+your application data more organized.
+
+The absolutely essential part is you have a map with a key to another
+map.
+
+Now lets test working with this client database, create a ~*.cljc~
+file with the following contents and fire up your *CLOJURE* (not
+ClojureScript) REPL.  *NOTE:* feel free to use whatever namespace you
+want to, ~omn1,core2~ is tangential information to the lesson.
+
+#+BEGIN_SRC clojure
+(ns omn1.core2
+  (:require [om.next :as om]))
+(def app-state (atom {:current/user {:user/name "Fenton"}}))
+#+END_SRC
+
+Here ~app-state~ is your client database.
+
+Now in your REPL execute the following command:
+
+#+BEGIN_SRC clojure
+omn1.core2> (om/db->tree [:current/user] @app-state @app-state)
+#:current{:user #:user{:name "Fenton"}}
+#+END_SRC
+
+The ~#: ... {~ syntax is just the namespacing representation.  This is
+equivalent to:
+
+#+BEGIN_SRC clojure
+{:current/user {:user/name "Fenton"}}
+#+END_SRC
+
+** Explanation
+
+We have seen how to store *singleton'ish* information.  We use a map.
+We have also seen how to extract our information, the key here is the
+array with the keyword in it:
+
+#+BEGIN_SRC clojure
+  [:current/user]
+#+END_SRC
+
+This is the first introduction to what we call the *Query Syntax*.
+Here is a reference to [[https://awkay.github.io/om-tutorial/#!/om_tutorial.D_Queries][query syntax]].
+
+So lets add some more interesting data.  Lets add a list of things.
+
+#+BEGIN_SRC clojure
+(def app-state (atom {:current/user {:user/name "Fenton"}
+                      :my-cars [{:make "Toyota"
+                                 :model "Tacoma"
+                                 :year "2013"}
+                                {:make "BMW"
+                                 :model "325xi"
+                                 :year "2001"}]}))
+#+END_SRC
+
+Access it the same old way:
+
+#+BEGIN_SRC clojure
+omn1.core2> (om/db->tree [:my-cars] @app-state @app-state)
+{:my-cars
+ [{:make "Toyota", :model "Tacoma", :year "2013"}
+  {:make "BMW", :model "325xi", :year "2001"}]}
+omn1.core2> 
+#+END_SRC
+
+* Wire into a web page
+
+Now lets wire this up into a web page.  I'm going to separate this
+web-app into two files.  One ~*.cljs~ file and one ~*.cljc~ file.
+I'll put the parts that have to be in clojurescrip into the ~*.cljs~
+file while parts that can run either server or client side (java or
+javascript) into the ~*.cljc~ file.
+
+The source tree will look like:
+
+#+BEGIN_SRC 
+╭─fenton@ss9 ~/projects/omn1/src  ‹master*› 
+╰─➤  tree
+|-- cljc
+|   `-- omn1
+|       `-- data.cljc
+`-- cljs
+    `-- omn1
+        `-- webpage.cljs
+4 directories, 2 files
+#+END_SRC
+
+File: ~webpage.cljs~
+
+#+BEGIN_SRC clojure
+  (ns omn1.webpage
+    (:require
+     [om.next :as om :refer-macros [defui]]
+     [om.dom :as dom]
+     [goog.dom :as gdom]
+     [omn1.data :as dat]))
+
+  (defui Blah
+    static om/IQuery
+    (query [this] [:current/user])
+    Object
+    (render
+     [this]
+     (let [data (om/props this)]
+       (dom/div nil (str "App Data: " data)))))
+
+  (om/add-root! dat/reconciler Blah (gdom/getElement "app"))
+#+END_SRC
+
+File: ~data.cljc~
+
+#+BEGIN_SRC clojure
+(ns omn1.data
+  (:require [om.next :as om :refer-macros [defui]]))
+
+(def app-state (atom {:current/user {:user/name "Fenton"}
+                      :my-cars [{:make "Toyota"
+                                 :model "Tacoma"
+                                 :year "2013"}
+                                {:make "BMW"
+                                 :model "325xi"
+                                 :year "2001"}]}))
+
+(defn reader
+  [{:keys [query state]} _ _]
+  (let [st @state]
+    {:value (om/db->tree query st st)}))
+
+(def parser (om/parser {:read reader}))
+
+(def reconciler
+  (om/reconciler {:state app-state :parser parser}))
+#+END_SRC
+
+Okay there is a lot of stuff here, but it should be familiar from the
+other two sources of information.  This doc is just filling out parts
+I didn't understand or I felt needed a more pedantic. 
+
+** Existing Documentation Deviation
+
+In the examples in the quick start, the reader function calls
+~db->tree~ in a different way, notice the second argument difference: 
+
+#+BEGIN_SRC clojure
+  (om/db->tree key (get st k) st)
+#+END_SRC
+
+Whereas we are passing in the full state as the second parameter.  I
+found the [[https://github.com/omcljs/om/wiki/Thinking-With-Links%21#the-application-state][quick start]] way didn't work for me when I had a simple
+*property* query, i.e. our singleton query for current user.
+
+** Fix up web page
+
+Actually the web page is quite messy.  We do manage to get the data to
+the page, but we dont really display it very well.
+
+When we have tabular data with rows, we create UI to handle each
+individual row.
+
+
+* Questions
+
+My webpage only has the output: ~{:user {}}~ with the following code.
+
+#+BEGIN_SRC clojure
+(ns omn1.core
+  (:require
+   [om.next :as om :refer-macros [defui]]
+   [om.dom :as dom :refer [div]]
+   [goog.dom :as gdom]))
+
+(defui MyComponent
+  static om/IQuery
+  (query [this] [:user])
+  Object
+  (render
+   [this]
+   (let [data (om/props this)]
+     (div nil (str data)))))
+
+(def app-state (atom {:user {:name "Fenton"}}))
+
+(defn reader [{q :query st :state} _ _]
+  (.log js/console (str "q: " q))
+  {:value (om/db->tree q @app-state @app-state)})
+
+(def parser (om/parser {:read reader}))
+
+(def reconciler
+  (om/reconciler
+   {:state app-state
+    :parser parser}))
+
+(om/add-root! reconciler MyComponent (gdom/getElement "app"))
+#+END_SRC
+
+When I check the browser console, I notice that my query is nil.  Why
+doesn't it get passed into my reader function?
