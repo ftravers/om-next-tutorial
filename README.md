@@ -2,219 +2,289 @@
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#sec-1">1. Introduction</a></li>
-<li><a href="#sec-2">2. App Database</a>
+<li><a href="#sec-1">1. Source Code</a></li>
+<li><a href="#sec-2">2. In the beginning</a>
 <ul>
-<li><a href="#sec-2-1">2.1. Explanation</a></li>
+<li><a href="#sec-2-1">2.1. Overview</a></li>
+<li><a href="#sec-2-2">2.2. App State</a></li>
+<li><a href="#sec-2-3">2.3. Component</a></li>
+<li><a href="#sec-2-4">2.4. 1st Component</a></li>
+<li><a href="#sec-2-5">2.5. The query</a></li>
+<li><a href="#sec-2-6">2.6. Reader</a></li>
+<li><a href="#sec-2-7">2.7. Other Wiring: Parser, Reconciler, add-root!</a></li>
+<li><a href="#sec-2-8">2.8. Summary</a></li>
 </ul>
 </li>
-<li><a href="#sec-3">3. Wire into a web page</a>
+<li><a href="#sec-3">3. Writing/Transacting/Mutating App State</a></li>
+<li><a href="#sec-4">4. Datomic remotes</a></li>
+<li><a href="#sec-5">5. Om Next plus Datomic Tutorial</a>
 <ul>
-<li><a href="#sec-3-1">3.1. Existing Documentation Deviation</a></li>
-<li><a href="#sec-3-2">3.2. Fix up web page</a></li>
+<li><a href="#sec-5-1">5.1. Om Next Data Model</a></li>
+<li><a href="#sec-5-2">5.2. Datomic Modeling</a></li>
+<li><a href="#sec-5-3">5.3. Om Next UI</a></li>
+<li><a href="#sec-5-4">5.4. Compare Queries</a></li>
 </ul>
 </li>
-<li><a href="#sec-4">4. Questions</a></li>
+<li><a href="#sec-6">6. Datomic Again</a>
+<ul>
+<li><a href="#sec-6-1">6.1. Om Next Reader Return Value</a></li>
+</ul>
+</li>
 </ul>
 </div>
 </div>
 
-# Introduction<a id="sec-1" name="sec-1"></a>
+# Source Code<a id="sec-1" name="sec-1"></a>
 
-This will be an evolving tutorial, representing what I know, and
-presumably at the end of the document, where I'm stuck.
+The source code for this project can be found at the github repo:
 
-There are at least two good spots to study om-next,
-[the
-quick-start](https://github.com/omcljs/om/wiki/Quick-Start-(om.next)) on the wiki, and
-[Tony Kay's devcards tutorial](https://github.com/awkay/om-tutorial).
-Even after reading/doing those sources, I was still too confused to
-build anything.  This document will outline where I'm still confused.
+    https://github.com/ftravers/omn1
 
-# App Database<a id="sec-2" name="sec-2"></a>
+Go ahead and clone that now.
 
-Om next has a concept of a properly formed local database format.
-This should be a clojure map.  Storing simple data like the current
-users name should look like this:
+Throughout this tutorial you'll see sections like:
 
-    {:current/user {:user/name "Fenton"}}
+GIT BRANCH: some-name
 
-I'm not sure how important it is to namespace like: `:current/user`
-versus `:current-user`, but I think it is a best practice to help keep
-your application data more organized.
+To see the code corresponding to that section, just checkout the
+branch by that name.
 
-The absolutely essential part is you have a map with a key to another
-map.
+# In the beginning<a id="sec-2" name="sec-2"></a>
 
-Now lets test working with this client database, create a `*.cljc`
-file with the following contents and fire up your **CLOJURE** (not
-ClojureScript) REPL.  **NOTE:** feel free to use whatever namespace you
-want to, `omn1,core2` is tangential information to the lesson.
+## Overview<a id="sec-2-1" name="sec-2-1"></a>
 
-    (ns omn1.core2
-      (:require [om.next :as om]))
-    (def app-state (atom {:current/user {:user/name "Fenton"}}))
+Lets start with the absolute bare bones setup.  We'll display one
+value from an om-next client data store.
 
-Here `app-state` is your client database.
+## App State<a id="sec-2-2" name="sec-2-2"></a>
 
-Now in your REPL execute the following command:
+When I say data store, that is a glamorous word for a clojurescript
+map wrapped in an atom.
 
-    omn1.core2> (om/db->tree [:current/user] @app-state @app-state)
-    #:current{:user #:user{:name "Fenton"}}
+    (def app-state (atom {:name "Bob"}))
 
-The `#: ... {` syntax is just the namespacing representation.  This is
-equivalent to:
+## Component<a id="sec-2-3" name="sec-2-3"></a>
 
-    {:current/user {:user/name "Fenton"}}
+The word *component* is often used to describe a chunk of logically
+related html code.  For example a table is often written as two
+components, one for the table heading and column headers, and another
+component that is repeatedly used for each row.
 
-## Explanation<a id="sec-2-1" name="sec-2-1"></a>
+## 1st Component<a id="sec-2-4" name="sec-2-4"></a>
 
-We have seen how to store **singleton'ish** information.  We use a map.
-We have also seen how to extract our information, the key here is the
-array with the keyword in it:
+GIT BRANCH: simple-reading
 
-    [:current/user]
+Lets write the 'html' component that will display this greeting.
 
-This is the first introduction to what we call the **Query Syntax**.
-Here is a reference to [query syntax](https://awkay.github.io/om-tutorial/#!/om_tutorial.D_Queries).
-
-So lets add some more interesting data.  Lets add a list of things.
-
-    (def app-state (atom {:current/user {:user/name "Fenton"}
-                          :my-cars [{:make "Toyota"
-                                     :model "Tacoma"
-                                     :year "2013"}
-                                    {:make "BMW"
-                                     :model "325xi"
-                                     :year "2001"}]}))
-
-Access it the same old way:
-
-    omn1.core2> (om/db->tree [:my-cars] @app-state @app-state)
-    {:my-cars
-     [{:make "Toyota", :model "Tacoma", :year "2013"}
-      {:make "BMW", :model "325xi", :year "2001"}]}
-    omn1.core2>
-
-# Wire into a web page<a id="sec-3" name="sec-3"></a>
-
-Now lets wire this up into a web page.  I'm going to separate this
-web-app into two files.  One `*.cljs` file and one `*.cljc` file.
-I'll put the parts that have to be in clojurescrip into the `*.cljs`
-file while parts that can run either server or client side (java or
-javascript) into the `*.cljc` file.
-
-The source tree will look like:
-
-    ╭─fenton@ss9 ~/projects/omn1/src  ‹master*› 
-    ╰─➤  tree
-    |-- cljc
-    |   `-- omn1
-    |       `-- data.cljc
-    `-- cljs
-        `-- omn1
-            `-- webpage.cljs
-    4 directories, 2 files
-
-File: `webpage.cljs`
-
-    (ns omn1.webpage
-      (:require
-       [om.next :as om :refer-macros [defui]]
-       [om.dom :as dom]
-       [goog.dom :as gdom]
-       [omn1.data :as dat]))
-    
-    (defui Blah
+    (defui Greeter
       static om/IQuery
-      (query [this] [:current/user])
+      (query [_] [:name])
+    
       Object
       (render
        [this]
-       (let [data (om/props this)]
-         (dom/div nil (str "App Data: " data)))))
-    
-    (om/add-root! dat/reconciler Blah (gdom/getElement "app"))
+       (log "Greeter Component Props" (om/props this))
+       (div nil "Hello " (:name (om/props this)))))
 
-File: `data.cljc`
+## The query<a id="sec-2-5" name="sec-2-5"></a>
 
-    (ns omn1.data
-      (:require [om.next :as om :refer-macros [defui]]))
-    
-    (def app-state (atom {:current/user {:user/name "Fenton"}
-                          :my-cars [{:make "Toyota"
-                                     :model "Tacoma"
-                                     :year "2013"}
-                                    {:make "BMW"
-                                     :model "325xi"
-                                     :year "2001"}]}))
-    
-    (defn reader
-      [{:keys [query state]} _ _]
-      (let [st @state]
-        {:value (om/db->tree query st st)}))
-    
-    (def parser (om/parser {:read reader}))
-    
-    (def reconciler
-      (om/reconciler {:state app-state :parser parser}))
+In this component we *query* for `[:name]`.  If you've checked out the
+code and run it, you will see the logging in this component outputs:
 
-Okay there is a lot of stuff here, but it should be familiar from the
-other two sources of information.  This doc is just filling out parts
-I didn't understand or I felt needed a more pedantic. 
+    {:name "Bob"}
 
-## Existing Documentation Deviation<a id="sec-3-1" name="sec-3-1"></a>
+So from the components perspective, it asks for `[:name]` and it gets
+back: `{:name "Bob"}` according to our `app-state`:
 
-In the examples in the quick start, the reader function calls
-`db->tree` in a different way, notice the second argument difference: 
+    (def app-state (atom {:name "Bob"}))
 
-    (om/db->tree key (get st k) st)
+## Reader<a id="sec-2-6" name="sec-2-6"></a>
 
-Whereas we are passing in the full state as the second parameter.  I
-found the [quick start](https://github.com/omcljs/om/wiki/Thinking-With-Links%21#the-application-state) way didn't work for me when I had a simple
-**property** query, i.e. our singleton query for current user.
+In om-next we write *reader* functions.  These are the functions that
+actually get the data for us.  Our reader function looks like this
+mess:
 
-## Fix up web page<a id="sec-3-2" name="sec-3-2"></a>
+    (defmethod reader :default
+      [{st :state} key _]
+      (log "Default Reader Key" key)
+      (log "State" @st)
+      (let [omdb-tree (om/db->tree [key] @st @st)
+            resp {:value (key omdb-tree)}]
+        (log "Om DB->tree" omdb-tree)
+        (log "Responding With" resp)
+        resp))
 
-Actually the web page is quite messy.  We do manage to get the data to
-the page, but we dont really display it very well.
+Lets examine the output of the log statements:
 
-When we have tabular data with rows, we create UI to handle each
-individual row.
+    [DEFAULT READER KEY]: :name
 
-# Questions<a id="sec-4" name="sec-4"></a>
+So `key` has the value `:name`.  So far this looks reasonable.
 
-My webpage only has the output: `{:user {}}` with the following code.
+    [STATE]: {:name "Bob"}
 
-    (ns omn1.core
-      (:require
-       [om.next :as om :refer-macros [defui]]
-       [om.dom :as dom :refer [div]]
-       [goog.dom :as gdom]))
-    
-    (defui MyComponent
-      static om/IQuery
-      (query [this] [:user])
-      Object
-      (render
-       [this]
-       (let [data (om/props this)]
-         (div nil (str data)))))
-    
-    (def app-state (atom {:user {:name "Fenton"}}))
-    
-    (defn reader [{q :query st :state} _ _]
-      (.log js/console (str "q: " q))
-      {:value (om/db->tree q @app-state @app-state)})
-    
-    (def parser (om/parser {:read reader}))
-    
-    (def reconciler
-      (om/reconciler
-       {:state app-state
-        :parser parser}))
-    
-    (om/add-root! reconciler MyComponent (gdom/getElement "app"))
+So `@st` is nothing other than our app-state.
 
-When I check the browser console, I notice that my query is nil.  Why
-doesn't it get passed into my reader function?
+`om/db->tree` hydrates a query, the first argument, from the state
+provided in the second/third arguments.  I'm actually a bit unclear
+why this function takes state twice, maybe someone will enlighten ;).
+
+    [OM DB->TREE]: {:name "Bob"}
+
+Finally, the response is:
+
+    [RESPONDING WITH]: 
+    {:value "Bob"}
+
+This may be a bit surprising.  The reader returns `{:value "Bob"}`,
+but the component gets `{:name "Bob"}`.  I'm not sure why this is
+setup this way, but this is readers work.  They will replace the
+keyword `:value` with the keyword in the `key` second parameter of the
+function, which in our case is `:name`.
+
+## Other Wiring: Parser, Reconciler, add-root!<a id="sec-2-7" name="sec-2-7"></a>
+
+The rest of the code is boilerplate required to wire things up.  The
+`parser` wraps up the `reader` function.  The `reconciler` combines
+the `parser` with the `app-state`.  Finally `om/add-root!` combines
+the root component with the reconciler and mounts it into the `app`
+html element in `index.html`.
+
+## Summary<a id="sec-2-8" name="sec-2-8"></a>
+
+This wraps up a basic *reading* component in om-next.  Other tutorials
+out there cover this stuff already, and arguably in better detail, but
+I wanted to lay out a foundation for further discussions.
+
+# Writing/Transacting/Mutating App State<a id="sec-3" name="sec-3"></a>
+
+Lets modify our value for name and see that get reflected in the
+webpage.
+
+First we write a mutate function:
+
+    (defmethod mutate 'new-name
+      [{state :state} ky params]
+      (log "key" ky)
+      (log "params" params)
+      (log "state" @state)
+      {:value {:keys (keys params)}
+       :action #(swap! state merge params)})
+
+And we can call it from the REPL like so:
+
+    (om.next/transact! reconciler '[(new-name {:name "joe"})])
+
+Mutate functions should return a map with two keys `:value` and
+`:action`.  `:value` should be a map of the keys that are going to be
+updated by this transaction.  This helps om-next refresh those parts
+of the DOM that are connected to the values contained in those keys.
+
+`:action` should return a function that moves the app-state atom from
+its current value to a new value.
+
+So now we can modify in our app-state atom as om-next wants us to.
+
+GIT BRANCH: simple-mutate
+
+Let's now look out how we'd integrate an external server into our
+setup.
+
+# Datomic remotes<a id="sec-4" name="sec-4"></a>
+
+To setup a remote we create a function like so:
+
+# Om Next plus Datomic Tutorial<a id="sec-5" name="sec-5"></a>
+
+This tutorial will simulate a data flow between om-next and datomic.
+A user will enter a car make, like BMW or Toyota, and a list of models
+will be sent from the backend to the front end.
+
+## Om Next Data Model<a id="sec-5-1" name="sec-5-1"></a>
+
+On the front end we'll model this with the following map structure:
+
+    {:current/car
+     {:car/make "Toyota"
+      :make/models [{:model "Tacoma"}
+                    {:model "Tercel"}]}}
+
+## Datomic Modeling<a id="sec-5-2" name="sec-5-2"></a>
+
+To support this on the datomic side we'll have data stored like:
+
+    [{:car/make "Toyota"
+      :make/models [{:model "Tacoma"}
+                    {:model "Tercel"}]}
+     {:car/make "BMW"
+      :make/models [{:model "325xi"}
+                    {:model "x5"}]}]
+
+Our pull pattern in our query will look like:
+
+    [{:make/models [:model]}]
+
+## Om Next UI<a id="sec-5-3" name="sec-5-3"></a>
+
+The queries of our Om Next components are:
+
+    (defui CarModel
+      (query [this] [:model])
+    (defui CarRoot
+      (query [this] [:current/car {:make/models (om/get-query CarModel)}])
+
+## Compare Queries<a id="sec-5-4" name="sec-5-4"></a>
+
+Om Next Query
+
+    [:current/car {:make/models [:model]}]
+
+Datomic Pull Pattern
+
+    [{:make/models [:model]}]
+
+# Datomic Again<a id="sec-6" name="sec-6"></a>
+
+So our query on the datomic takes in a make as a variable and returns
+the associated models.
+
+We could say the input would be two values.  The first is the where
+clause.  Get the entity who's `:car/make` attribute has the value
+`Toyota`.  We can express this with a datomic where clause that looks
+like:
+
+    [?e :car/make "Toyota"]
+
+In this case, the found entity is stored in the variable `?e`.  
+
+Next we have to say, with this found entity, what data of it do we
+want back?  Remember the shape of the data in Datomic looks like:
+
+    [{:car/make "Toyota"
+      :make/models [{:model "Tacoma"}
+                    {:model "Tercel"}]}
+     {:car/make "BMW"
+      :make/models [{:model "325xi"}
+                    {:model "x5"}]}]
+
+So we can say, well, we want the associate model names.  A pull
+pattern that looks like this:
+
+    [{:make/models [:model]}]
+
+or more completely:
+
+    '[(pull ?e [{:make/models [:model]}]) ...]
+
+which basically reads: from the found entity `?e` find the reference
+attribute `:make/models`.  Follow that reference, and from the found
+children entities, get the values for the `:model` attribute.
+
+When we run this in datomic we predictably get the pull pattern
+*filled* out:
+
+    #:make{:models [{:model "Tacoma"} {:model "Tercel"}]}
+
+## Om Next Reader Return Value<a id="sec-6-1" name="sec-6-1"></a>
+
+If I query for a key, then the returned value from the reader function
+should be a map with a key

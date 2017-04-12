@@ -1,3 +1,192 @@
+* Source Code
+
+The source code for this project can be found at the github repo:
+
+#+BEGIN_SRC 
+https://github.com/ftravers/omn1
+#+END_SRC
+
+Go ahead and clone that now.
+
+Throughout this tutorial you'll see sections like:
+
+GIT BRANCH: some-name
+
+To see the code corresponding to that section, just checkout the
+branch by that name.
+
+* In the beginning
+** Overview
+
+Lets start with the absolute bare bones setup.  We'll display one
+value from an om-next client data store.
+
+** App State
+
+When I say data store, that is a glamorous word for a clojurescript
+map wrapped in an atom.
+
+#+BEGIN_SRC clojure
+  (def app-state (atom {:name "Bob"}))
+#+END_SRC
+
+** Component
+
+The word /component/ is often used to describe a chunk of logically
+related html code.  For example a table is often written as two
+components, one for the table heading and column headers, and another
+component that is repeatedly used for each row.
+
+** 1st Component
+
+GIT BRANCH: simple-reading
+
+Lets write the 'html' component that will display this greeting.
+
+#+BEGIN_SRC clojure
+(defui Greeter
+  static om/IQuery
+  (query [_] [:name])
+
+  Object
+  (render
+   [this]
+   (log "Greeter Component Props" (om/props this))
+   (div nil "Hello " (:name (om/props this)))))
+#+END_SRC
+
+** The query
+
+In this component we /query/ for ~[:name]~.  If you've checked out the
+code and run it, you will see the logging in this component outputs:
+
+#+BEGIN_SRC clojure
+{:name "Bob"}
+#+END_SRC
+
+So from the components perspective, it asks for ~[:name]~ and it gets
+back: ~{:name "Bob"}~ according to our ~app-state~:
+
+#+BEGIN_SRC clojure
+(def app-state (atom {:name "Bob"}))
+#+END_SRC
+
+** Reader
+
+In om-next we write /reader/ functions.  These are the functions that
+actually get the data for us.  Our reader function looks like this
+mess:
+
+#+BEGIN_SRC clojure
+(defmethod reader :default
+  [{st :state} key _]
+  (log "Default Reader Key" key)
+  (log "State" @st)
+  (let [omdb-tree (om/db->tree [key] @st @st)
+        resp {:value (key omdb-tree)}]
+    (log "Om DB->tree" omdb-tree)
+    (log "Responding With" resp)
+    resp))
+#+END_SRC
+
+Lets examine the output of the log statements:
+
+#+BEGIN_SRC 
+[DEFAULT READER KEY]: :name
+#+END_SRC
+
+So ~key~ has the value ~:name~.  So far this looks reasonable.
+
+#+BEGIN_SRC
+[STATE]: {:name "Bob"}
+#+END_SRC
+
+So ~@st~ is nothing other than our app-state.
+
+~om/db->tree~ hydrates a query, the first argument, from the state
+provided in the second/third arguments.  I'm actually a bit unclear
+why this function takes state twice, maybe someone will enlighten ;).
+
+#+BEGIN_SRC 
+[OM DB->TREE]: {:name "Bob"}
+#+END_SRC
+
+Finally, the response is:
+
+#+BEGIN_SRC 
+[RESPONDING WITH]: 
+{:value "Bob"}
+#+END_SRC
+
+This may be a bit surprising.  The reader returns ~{:value "Bob"}~,
+but the component gets ~{:name "Bob"}~.  I'm not sure why this is
+setup this way, but this is readers work.  They will replace the
+keyword ~:value~ with the keyword in the ~key~ second parameter of the
+function, which in our case is ~:name~.
+
+** Other Wiring: Parser, Reconciler, add-root!
+
+The rest of the code is boilerplate required to wire things up.  The
+~parser~ wraps up the ~reader~ function.  The ~reconciler~ combines
+the ~parser~ with the ~app-state~.  Finally ~om/add-root!~ combines
+the root component with the reconciler and mounts it into the ~app~
+html element in ~index.html~.
+
+** Summary
+
+This wraps up a basic /reading/ component in om-next.  Other tutorials
+out there cover this stuff already, and arguably in better detail, but
+I wanted to lay out a foundation for further discussions.
+
+* Writing/Transacting/Mutating App State
+
+Lets modify our value for name and see that get reflected in the
+webpage.
+
+First we write a mutate function:
+
+#+BEGIN_SRC clojure
+  (defmethod mutate 'new-name
+    [{state :state} ky params]
+    (log "key" ky)
+    (log "params" params)
+    (log "state" @state)
+    {:value {:keys (keys params)}
+     :action #(swap! state merge params)})
+#+END_SRC
+
+And we can call it from the REPL like so:
+
+#+BEGIN_SRC clojure
+  (om.next/transact! reconciler '[(new-name {:name "joe"})])
+#+END_SRC
+
+Mutate functions should return a map with two keys ~:value~ and
+~:action~.  ~:value~ should be a map of the keys that are going to be
+updated by this transaction.  This helps om-next refresh those parts
+of the DOM that are connected to the values contained in those keys.
+
+~:action~ should return a function that moves the app-state atom from
+its current value to a new value.
+
+So now we can modify in our app-state atom as om-next wants us to.
+
+GIT BRANCH: simple-mutate
+
+Let's now look out how we'd integrate an external server into our
+setup.
+
+* Datomic remotes
+
+To setup a remote we create a function like so:
+
+#+BEGIN_SRC clojure
+
+#+END_SRC
+
+
+
+
 * Om Next plus Datomic Tutorial
 
 This tutorial will simulate a data flow between om-next and datomic.
