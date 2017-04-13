@@ -17,17 +17,19 @@
 </li>
 <li><a href="#sec-3">3. Writing/Transacting/Mutating App State</a></li>
 <li><a href="#sec-4">4. Datomic remotes</a></li>
-<li><a href="#sec-5">5. Om Next plus Datomic Tutorial</a>
+<li><a href="#sec-5">5. Om-next login</a></li>
+<li><a href="#sec-6">6. THE REMAINDER IS WORK IN PROGRESS - IGNORE</a></li>
+<li><a href="#sec-7">7. Om Next plus Datomic Tutorial</a>
 <ul>
-<li><a href="#sec-5-1">5.1. Om Next Data Model</a></li>
-<li><a href="#sec-5-2">5.2. Datomic Modeling</a></li>
-<li><a href="#sec-5-3">5.3. Om Next UI</a></li>
-<li><a href="#sec-5-4">5.4. Compare Queries</a></li>
+<li><a href="#sec-7-1">7.1. Om Next Data Model</a></li>
+<li><a href="#sec-7-2">7.2. Datomic Modeling</a></li>
+<li><a href="#sec-7-3">7.3. Om Next UI</a></li>
+<li><a href="#sec-7-4">7.4. Compare Queries</a></li>
 </ul>
 </li>
-<li><a href="#sec-6">6. Datomic Again</a>
+<li><a href="#sec-8">8. Datomic Again</a>
 <ul>
-<li><a href="#sec-6-1">6.1. Om Next Reader Return Value</a></li>
+<li><a href="#sec-8-1">8.1. Om Next Reader Return Value</a></li>
 </ul>
 </li>
 </ul>
@@ -83,7 +85,6 @@ Lets write the 'html' component that will display this greeting.
       Object
       (render
        [this]
-       (log "Greeter Component Props" (om/props this))
        (div nil "Hello " (:name (om/props this)))))
 
 ## The query<a id="sec-2-5" name="sec-2-5"></a>
@@ -106,13 +107,7 @@ mess:
 
     (defmethod reader :default
       [{st :state} key _]
-      (log "Default Reader Key" key)
-      (log "State" @st)
-      (let [omdb-tree (om/db->tree [key] @st @st)
-            resp {:value (key omdb-tree)}]
-        (log "Om DB->tree" omdb-tree)
-        (log "Responding With" resp)
-        resp))
+      {:value (key (om/db->tree [key] @st @st))})
 
 Lets examine the output of the log statements:
 
@@ -164,9 +159,6 @@ First we write a mutate function:
 
     (defmethod mutate 'new-name
       [{state :state} ky params]
-      (log "key" ky)
-      (log "params" params)
-      (log "state" @state)
       {:value {:keys (keys params)}
        :action #(swap! state merge params)})
 
@@ -193,13 +185,53 @@ setup.
 
 To setup a remote we create a function like so:
 
-# Om Next plus Datomic Tutorial<a id="sec-5" name="sec-5"></a>
+    (defn make-remote-req
+      [qry cb]
+      (cb {:name "Fred"}))
+    
+    (defmethod reader :default
+      [{st :state} key _]
+      (log "default reader" key)
+      {:value (key (om/db->tree [key] @st @st))
+       :remote true                         ; This is added
+       })
+    
+    (def reconciler
+      (om/reconciler
+       {:state app-state
+        :parser parser
+        :send make-remote-req               ; This is added
+        }))
+
+So here we define a function that is our remote call.  It just calls
+the callback `cb` with the data to be merged into the `@app-state`.
+
+The other two parts are the wiring.
+
+GIT BRANCH: remote-integration
+
+Now that we have the basics of reading/writing to the local app-state,
+and have simulated reading from the remote state, let's try to create
+a more realistic example.  The login use-case.
+
+# Om-next login<a id="sec-5" name="sec-5"></a>
+
+The way this login will work is that there will be username and
+password field along with a submit button.  This will submit both to
+the server and the server will respond with a user valid/invalid
+response.  First we'll simulate this without a backend.
+
+GIT BRANCH: login-step1
+
+# THE REMAINDER IS WORK IN PROGRESS - IGNORE<a id="sec-6" name="sec-6"></a>
+
+# Om Next plus Datomic Tutorial<a id="sec-7" name="sec-7"></a>
 
 This tutorial will simulate a data flow between om-next and datomic.
 A user will enter a car make, like BMW or Toyota, and a list of models
 will be sent from the backend to the front end.
 
-## Om Next Data Model<a id="sec-5-1" name="sec-5-1"></a>
+## Om Next Data Model<a id="sec-7-1" name="sec-7-1"></a>
 
 On the front end we'll model this with the following map structure:
 
@@ -208,7 +240,7 @@ On the front end we'll model this with the following map structure:
       :make/models [{:model "Tacoma"}
                     {:model "Tercel"}]}}
 
-## Datomic Modeling<a id="sec-5-2" name="sec-5-2"></a>
+## Datomic Modeling<a id="sec-7-2" name="sec-7-2"></a>
 
 To support this on the datomic side we'll have data stored like:
 
@@ -223,7 +255,7 @@ Our pull pattern in our query will look like:
 
     [{:make/models [:model]}]
 
-## Om Next UI<a id="sec-5-3" name="sec-5-3"></a>
+## Om Next UI<a id="sec-7-3" name="sec-7-3"></a>
 
 The queries of our Om Next components are:
 
@@ -232,7 +264,7 @@ The queries of our Om Next components are:
     (defui CarRoot
       (query [this] [:current/car {:make/models (om/get-query CarModel)}])
 
-## Compare Queries<a id="sec-5-4" name="sec-5-4"></a>
+## Compare Queries<a id="sec-7-4" name="sec-7-4"></a>
 
 Om Next Query
 
@@ -242,7 +274,7 @@ Datomic Pull Pattern
 
     [{:make/models [:model]}]
 
-# Datomic Again<a id="sec-6" name="sec-6"></a>
+# Datomic Again<a id="sec-8" name="sec-8"></a>
 
 So our query on the datomic takes in a make as a variable and returns
 the associated models.
@@ -284,7 +316,7 @@ When we run this in datomic we predictably get the pull pattern
 
     #:make{:models [{:model "Tacoma"} {:model "Tercel"}]}
 
-## Om Next Reader Return Value<a id="sec-6-1" name="sec-6-1"></a>
+## Om Next Reader Return Value<a id="sec-8-1" name="sec-8-1"></a>
 
 If I query for a key, then the returned value from the reader function
 should be a map with a key

@@ -51,7 +51,6 @@ Lets write the 'html' component that will display this greeting.
   Object
   (render
    [this]
-   (log "Greeter Component Props" (om/props this))
    (div nil "Hello " (:name (om/props this)))))
 #+END_SRC
 
@@ -78,15 +77,9 @@ actually get the data for us.  Our reader function looks like this
 mess:
 
 #+BEGIN_SRC clojure
-(defmethod reader :default
-  [{st :state} key _]
-  (log "Default Reader Key" key)
-  (log "State" @st)
-  (let [omdb-tree (om/db->tree [key] @st @st)
-        resp {:value (key omdb-tree)}]
-    (log "Om DB->tree" omdb-tree)
-    (log "Responding With" resp)
-    resp))
+  (defmethod reader :default
+    [{st :state} key _]
+    {:value (key (om/db->tree [key] @st @st))})
 #+END_SRC
 
 Lets examine the output of the log statements:
@@ -148,9 +141,6 @@ First we write a mutate function:
 #+BEGIN_SRC clojure
   (defmethod mutate 'new-name
     [{state :state} ky params]
-    (log "key" ky)
-    (log "params" params)
-    (log "state" @state)
     {:value {:keys (keys params)}
      :action #(swap! state merge params)})
 #+END_SRC
@@ -181,11 +171,47 @@ setup.
 To setup a remote we create a function like so:
 
 #+BEGIN_SRC clojure
+  (defn make-remote-req
+    [qry cb]
+    (cb {:name "Fred"}))
 
+  (defmethod reader :default
+    [{st :state} key _]
+    (log "default reader" key)
+    {:value (key (om/db->tree [key] @st @st))
+     :remote true                         ; This is added
+     })
+
+  (def reconciler
+    (om/reconciler
+     {:state app-state
+      :parser parser
+      :send make-remote-req               ; This is added
+      }))
 #+END_SRC
 
+So here we define a function that is our remote call.  It just calls
+the callback ~cb~ with the data to be merged into the ~@app-state~.
+
+The other two parts are the wiring.
+
+GIT BRANCH: remote-integration
+
+Now that we have the basics of reading/writing to the local app-state,
+and have simulated reading from the remote state, let's try to create
+a more realistic example.  The login use-case.
+
+* Om-next login
+
+The way this login will work is that there will be username and
+password field along with a submit button.  This will submit both to
+the server and the server will respond with a user valid/invalid
+response.  First we'll simulate this without a backend.
+
+GIT BRANCH: login-step1
 
 
+* THE REMAINDER IS WORK IN PROGRESS - IGNORE
 
 * Om Next plus Datomic Tutorial
 
