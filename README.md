@@ -109,30 +109,23 @@ mess:
       [{st :state} key _]
       {:value (key (om/db->tree [key] @st @st))})
 
-Lets examine the output of the log statements:
+Here are the values of things:
 
-    [DEFAULT READER KEY]: :name
+    key ; :name
+    st ; {:name "Bob"}
+    (om/db->tree [key] @st @st) ; {:name "Bob"}
 
-So `key` has the value `:name`.  So far this looks reasonable.
+So the return value is:
 
-    [STATE]: {:name "Bob"}
-
-So `@st` is nothing other than our app-state.
+    {:value "Bob"}
 
 `om/db->tree` hydrates a query, the first argument, from the state
 provided in the second/third arguments.  I'm actually a bit unclear
 why this function takes state twice, maybe someone will enlighten ;).
 
-    [OM DB->TREE]: {:name "Bob"}
-
-Finally, the response is:
-
-    [RESPONDING WITH]: 
-    {:value "Bob"}
-
 This may be a bit surprising.  The reader returns `{:value "Bob"}`,
 but the component gets `{:name "Bob"}`.  I'm not sure why this is
-setup this way, but this is readers work.  They will replace the
+setup this way, but this is how readers work.  They will replace the
 keyword `:value` with the keyword in the `key` second parameter of the
 function, which in our case is `:name`.
 
